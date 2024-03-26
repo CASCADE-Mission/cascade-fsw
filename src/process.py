@@ -43,31 +43,23 @@ class Process:
 
     def block(self, interval):
         """
-        Block this process by a specified amount of time
+        Block this thread by a specified amount of time
         """
         time.sleep(interval)
 
     def block_until(self, until):
         """
-        Block this process until a certain timer value
+        Block this thread until a certain timer value
         """
         while self.time < until:
             pass
 
-    def until(self, until):
-        """
-        Return a boolean reporting whether or not the timer value is reached
-        """
-        if self.time < until:
-            return True
-        return False
-
     def hold(self):
         """
-        Perform a hold
+        Perform a hold, blocking all threads
         """
         self.timer.stop()
-        input("")
+        input("Performing scheduled hold >> ")
         self.timer.start()
 
     def add(self, function, name=None, success=None, failure=None, priority=0):
