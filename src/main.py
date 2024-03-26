@@ -7,23 +7,21 @@ import time
 # Import main process
 from process import Process
 
-def countdown(process):
+def p1(process):
     process.block_until(-5)
-
-def scheduled_hold_one(process):
     process.hold()
 
-def countdown_continued(process):
-    process.block_until(0)
+def p2(process):
+    while process.until(0):
+        print(f"{process.time}\r", end="")
 
 if __name__ == "__main__":
     # Initialize the main process
     cascade = Process(countdown=10)
 
     # Queue tasks
-    cascade.add(countdown)
-    cascade.add(scheduled_hold_one)
-    cascade.add(countdown_continued)
+    cascade.add(p1)
+    cascade.add(p2)
 
     # Execute the main process
     cascade.run()

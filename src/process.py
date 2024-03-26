@@ -1,6 +1,10 @@
 # CASCADE FSW
 # Main process
 
+from threading import Thread
+import time
+import sys
+
 from logger import Logger
 from task import Task
 from timer import Timer
@@ -37,11 +41,11 @@ class Process:
         """
         return self.timer.time - self.countdown
 
-    def block(self, time):
+    def block(self, interval):
         """
         Block this process by a specified amount of time
         """
-        time.sleep(time)
+        time.sleep(interval)
 
     def block_until(self, until):
         """
@@ -50,12 +54,20 @@ class Process:
         while self.time < until:
             pass
 
+    def until(self, until):
+        """
+        Return a boolean reporting whether or not the timer value is reached
+        """
+        if self.time < until:
+            return True
+        return False
+
     def hold(self):
         """
         Perform a hold
         """
         self.timer.stop()
-        input("Performing scheduled hold >> ")
+        input("\nPerforming scheduled hold >> ")
         self.timer.start()
 
     def add(self, function, name=None, success=None, failure=None, priority=0):
@@ -91,7 +103,8 @@ class Process:
             # Execute the task
             task(self)
             self.log(task.success)
-        except Exception:
+        except Exception as e:
+            raise e
             self.log(task.failure, priority=task.priority)
         
         # Log the task
@@ -107,12 +120,19 @@ class Process:
         # Start the timer
         self.timer.start()
 
+        threads = []
+
         while self.queue:
             # Get the highest-priority task
             task = self.queue.pop(0)
 
             # Execute this task
-            self.execute(task)
+            thread = Thread(target=self.execute, args=(task,))
+            thread.start()
+            threads.append(thread)
+            
+        for thread in threads:
+            thread.join()
 
         # Stop the timer
         self.timer.stop()
