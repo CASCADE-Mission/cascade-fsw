@@ -1,2 +1,5 @@
 # Ignore shell scripts
 connect
+
+# Ignore logs
+logs/
