@@ -3,3 +3,6 @@ connect
 
 # Ignore logs
 logs/
+
+# Ignore compiled Python files
+__pycache__/
