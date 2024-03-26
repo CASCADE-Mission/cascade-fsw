@@ -7,12 +7,16 @@ import time
 # Import main process
 from process import Process
 
+# Import tasks
+from tasks import COUNTDOWN, TASKS
+
 if __name__ == "__main__":
     # Initialize the main process
-    cascade = Process(countdown=10)
+    cascade = Process(countdown=COUNTDOWN)
 
     # Queue tasks
-    pass
+    for task, priority in TASKS.items():
+        cascade.add(task, priority=priority)
 
     # Execute the main process
     cascade.run()

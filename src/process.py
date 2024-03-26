@@ -112,22 +112,31 @@ class Process:
         # Start the timer
         self.timer.start()
 
-        threads = []
-
         while self.queue:
-            # Get the highest-priority task
-            task = self.queue.pop(0)
-
-            # Execute this task
-            thread = Thread(target=self.execute, args=(task,))
-            thread.start()
-            threads.append(thread)
-            
-        for thread in threads:
-            thread.join()
+            self._run()
 
         # Stop the timer
         self.timer.stop()
 
         # Log completion
         self.log(f"Main process terminating, all tasks completed")
+
+    def _run(self):
+        """
+        Execute all tasks
+        """
+        # Track threads
+        threads = []
+
+        while self.queue:
+            # Get the highest-priority task
+            task = self.queue.pop(0)
+
+            # Execute this task in a new thread
+            thread = Thread(target=self.execute, args=(task,))
+            thread.start()
+            threads.append(thread)
+            
+        # Join all threads
+        for thread in threads:
+            thread.join()
