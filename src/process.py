@@ -1,6 +1,9 @@
 # CASCADE FSW
 # Main process
 
+import threading
+import time
+
 from logger import Logger
 from task import Task
 
@@ -11,9 +14,9 @@ def by_priority(task):
     return task.priority
 
 class Process:
-    def __init__(self, logger=None):
+    def __init__(self, countdown=0, logger=None):
         """
-        Create a new process
+        Create the main process
         """
         # Initialize logger
         if logger is None:
@@ -22,6 +25,21 @@ class Process:
 
         # Initialize task queue
         self.queue = []
+
+        # Initialize process time
+        self.start = None
+
+        # Set countdown
+        self.countdown = countdown
+
+    def time(self):
+        """
+        Get process time
+        """
+        if self.start is not None:
+            return time.time() - self.start - self.countdown
+        else:
+            return None
 
     def add(self, function, name=None, success=None, failure=None, priority=0):
         """
@@ -48,7 +66,7 @@ class Process:
 
         try:
             # Execute the task
-            task.run()
+            task()
             self.logger.log(task.success)
         except Exception:
             self.logger.log(task.failure, priority=task.priority)
@@ -60,6 +78,9 @@ class Process:
         """
         Run the main process
         """
+        # Set process time
+        self.start = time.time()
+
         # Log the initialization
         self.logger.log("Main process successfully initialized")
 
@@ -68,7 +89,7 @@ class Process:
             task = self.queue.pop(0)
 
             # Execute this task
-            task()
+            self.execute(task)
 
         # Log completion
         self.logger.log(f"Main process terminating, all tasks completed")
