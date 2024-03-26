@@ -67,7 +67,7 @@ class Process:
         Perform a hold
         """
         self.timer.stop()
-        input("\nPerforming scheduled hold >> ")
+        input("")
         self.timer.start()
 
     def add(self, function, name=None, success=None, failure=None, priority=0):

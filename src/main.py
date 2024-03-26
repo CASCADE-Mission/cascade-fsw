@@ -14,6 +14,7 @@ def p1(process):
 def p2(process):
     while process.until(0):
         print(f"{process.time}\r", end="")
+    print()
 
 if __name__ == "__main__":
     # Initialize the main process
