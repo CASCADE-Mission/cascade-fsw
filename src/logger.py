@@ -1,6 +1,8 @@
 # CASCADE FSW
 # Data logger
 
+from os import mkdir, path
+
 from datetime import datetime
 
 # Define a log message for CASCADE
@@ -53,8 +55,17 @@ class Logger:
         """
         Create a logger
         """
+        # Set the logging directory
+        self.dir = "logs"
+
         # Set the log file
-        self.file = "logs/" + logfile
+        self.file = path.join(self.dir, logfile)
+
+        # Create the log directory
+        try:
+            mkdir(self.dir)
+        except OSError:
+            pass
 
     def log(self, msg, priority=0):
         """
@@ -64,5 +75,5 @@ class Logger:
         message = LogMessage(msg, priority)
 
         # Write log message
-        with open(self.file, "a") as f:
+        with open(self.file, "a+") as f:
             f.write(str(message))
