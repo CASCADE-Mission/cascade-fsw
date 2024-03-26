@@ -30,5 +30,5 @@ class Task:
     def __str__(self):
         return self.name
 
-    def __call__(self):
-        self.function()
+    def __call__(self, process):
+        self.function(process)

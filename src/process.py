@@ -1,11 +1,9 @@
 # CASCADE FSW
 # Main process
 
-import threading
-import time
-
 from logger import Logger
 from task import Task
+from timer import Timer
 
 def by_priority(task):
     """
@@ -26,20 +24,39 @@ class Process:
         # Initialize task queue
         self.queue = []
 
-        # Initialize process time
-        self.start = None
+        # Initialize process timer
+        self.timer = Timer()
 
         # Set countdown
         self.countdown = countdown
 
+    @property
     def time(self):
         """
         Get process time
         """
-        if self.start is not None:
-            return time.time() - self.start - self.countdown
-        else:
-            return None
+        return self.timer.time - self.countdown
+
+    def block(self, time):
+        """
+        Block this process by a specified amount of time
+        """
+        time.sleep(time)
+
+    def block_until(self, until):
+        """
+        Block this process until a certain timer value
+        """
+        while self.time < until:
+            pass
+
+    def hold(self):
+        """
+        Perform a hold
+        """
+        self.timer.stop()
+        input("Performing scheduled hold >> ")
+        self.timer.start()
 
     def add(self, function, name=None, success=None, failure=None, priority=0):
         """
@@ -52,37 +69,43 @@ class Process:
         self.queue.append(task)
 
         # Log the task
-        self.logger.log(f"{str(task)} queued")
+        self.log(f"{str(task)} queued")
         
         # Sort the queue
         self.queue.sort(reverse=True, key=by_priority)
+
+    def log(self, message, priority=0):
+        """
+        Log a message to the process log
+        """
+        self.logger.log(message, priority)
 
     def execute(self, task):
         """
         Execute a task in a safe environment
         """
         # Log the task
-        self.logger.log(f"{str(task)} started")
+        self.log(f"{str(task)} started")
 
         try:
             # Execute the task
-            task()
-            self.logger.log(task.success)
+            task(self)
+            self.log(task.success)
         except Exception:
-            self.logger.log(task.failure, priority=task.priority)
+            self.log(task.failure, priority=task.priority)
         
         # Log the task
-        self.logger.log(f"{str(task)} finished")
+        self.log(f"{str(task)} finished")
 
     def run(self):
         """
         Run the main process
         """
-        # Set process time
-        self.start = time.time()
-
         # Log the initialization
-        self.logger.log("Main process successfully initialized")
+        self.log("Main process successfully initialized")
+
+        # Start the timer
+        self.timer.start()
 
         while self.queue:
             # Get the highest-priority task
@@ -91,5 +114,8 @@ class Process:
             # Execute this task
             self.execute(task)
 
+        # Stop the timer
+        self.timer.stop()
+
         # Log completion
-        self.logger.log(f"Main process terminating, all tasks completed")
+        self.log(f"Main process terminating, all tasks completed")

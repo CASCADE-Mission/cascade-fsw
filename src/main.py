@@ -7,14 +7,14 @@ import time
 # Import main process
 from process import Process
 
-def countdown():
-    time.sleep(5)
+def countdown(process):
+    process.block_until(-5)
 
-def scheduled_hold_one():
-    input("Performing scheduled hold >> ")
+def scheduled_hold_one(process):
+    process.hold()
 
-def countdown_continued():
-    time.sleep(5)
+def countdown_continued(process):
+    process.block_until(0)
 
 if __name__ == "__main__":
     # Initialize the main process
