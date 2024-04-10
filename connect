@@ -1,0 +1,53 @@
+#!/bin/bash
+# Connection script
+
+# Provide instructions
+echo "Please check https://cascade831.pythonanywhere.com/ to get the hostname and IP address"
+
+# Set username and IP address
+read -p "Enter username >> " user
+read -p "Enter IP address >> " ip
+
+ReceiveFile () {
+    # Secure Copy (SCP) Script for CASCADE Flight Computer
+    # Receive a file from the remote host
+
+    # Read filename on remote host
+    read -p "Absolute path of remote file >> " abspath
+
+    # Get base name for output filename
+    output=$(basename $abspath)
+
+    scp $user@$ip:$abspath ./$output
+}
+
+SendFile () {
+    # Secure Copy (SCP) Script for CASCADE Flight Computer
+    # Sends a file to the remote host
+
+    # Read filename for file
+    read -p "Path of file >> " file
+
+    # Read filename for remote host
+    read -p "Destination absolute path >> " abspath
+
+    scp $file $user@$ip:$abspath
+}
+
+SecureShell () {
+    # Secure Shell (SSH) Script for CASCADE Flight Computer
+
+    ssh -X $user@$ip -v
+}
+
+read -p "Select action (shell/send/receive) >> " action
+
+if [ "$action" == "shell" ]; then
+    SecureShell
+elif [ "$action" == "send" ]; then
+    SendFile
+elif [ "$action" == "receive" ]; then
+    ReceiveFile
+else
+    echo "Action not recognized."
+fi
