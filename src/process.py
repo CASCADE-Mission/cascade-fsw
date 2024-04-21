@@ -34,6 +34,9 @@ class Process:
         # Set countdown
         self.countdown = countdown
 
+        # Initialize process variables
+        self.variables = {}
+
     @property
     def time(self):
         """
@@ -77,6 +80,29 @@ class Process:
         
         # Sort the queue
         self.queue.sort(reverse=True, key=by_priority)
+
+    def setvar(self, name, variable):
+        """
+        Create a process variable
+        """
+        self.variables[name] = variable
+        self.log(f"Created process variable {name}")
+
+    def getvar(self, name):
+        """
+        Get a process variable by name or raise an exception if the variable does not exist
+        """
+        # Attempt to get the variable
+        safeget = self.variables.get(name)
+        self.log(f"Attempting to access process variable {name}")
+
+        # Return the variable or throw an except
+        if safeget is not None:
+            self.log(f"Successfully accessed process variable {name}")
+            return safeget
+        else:
+            self.log(f"Could not find process variable {name}")
+            raise Exception()
 
     def log(self, message, priority=0):
         """
