@@ -2,8 +2,18 @@
 # Computer Vision
 
 import cv2
-import numpy
+import numpy as np
 from picamera2 import Picamera2
+
+BLUE_MASK = (
+    np.array([300, 60, 60]),
+    np.array([360, 255, 255]),
+)
+
+BLUE_MASK2 = (
+    np.array([0, 60, 60]),
+    np.array([60, 255, 255]),
+)
 
 def initialize_rgb_camera(process):
     """
@@ -34,5 +44,12 @@ def capture_rgb_image(process):
     # Capture a PIL-compatible image
     pil_image = camera.capture_image("main")
 
-    # Convert to OpenCV image
-    image = cv2.cvtColor(numpy.array(pil_image), cv2.COLOR_RGB2HSV)
+    # Convert the image color profile
+    image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_BGR2HSV)
+
+    # Create the image mask
+    mask = cv2.inRange(image, *BLUE_MASK)
+    mask2 = cv2.inRange(image, *BLUE_MASK2)
+
+    # Save the image file
+    cv2.imwrite("test.jpg", mask+mask2)

@@ -8,7 +8,7 @@ import time
 from process import Process
 
 # Import tasks
-from queue import COUNTDOWN, TASKS
+from tasklist import COUNTDOWN, TASKS
 
 if __name__ == "__main__":
     # Initialize the main process

@@ -1,7 +1,6 @@
 # CASCADE FSW
 # Main process
 
-from threading import Thread
 import time
 import sys
 
@@ -138,8 +137,8 @@ class Process:
         # Start the timer
         self.timer.start()
 
-        while self.queue:
-            self._run()
+        # Execute all tasks
+        self._run()
 
         # Stop the timer
         self.timer.stop()
@@ -151,18 +150,9 @@ class Process:
         """
         Execute all tasks
         """
-        # Track threads
-        threads = []
-
         while self.queue:
             # Get the highest-priority task
             task = self.queue.pop(0)
 
-            # Execute this task in a new thread
-            thread = Thread(target=self.execute, args=(task,))
-            thread.start()
-            threads.append(thread)
-            
-        # Join all threads
-        for thread in threads:
-            thread.join()
+            # Execute this task
+            self.execute(task)
