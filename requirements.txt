@@ -1,4 +1,0 @@
-opencv-python>=4.9.0
-numpy>=1.26
-picamera2>=0.3
-rpi-libcamera==0.1a3
