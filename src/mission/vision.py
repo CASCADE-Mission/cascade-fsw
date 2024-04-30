@@ -55,5 +55,18 @@ def capture_rgb_image(process):
     # Apply the image mask
     masked_img = cv2.bitwise_and(image, image, mask=mask)
 
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # If we have contours...
+    if len(contours) != 0:
+        # Find the biggest countour by area
+        c = max(contours, key=cv2.contourArea)
+
+        # Get a bounding rectangle around that contour
+        x, y, w, h = cv2.boundingRect(c)
+
+        # Draw the rectangle on our frame
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
     # Save the image file
-    cv2.imwrite("test.jpg", masked_img)
+    cv2.imwrite("test.jpg", image)
