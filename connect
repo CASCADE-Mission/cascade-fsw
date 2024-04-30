@@ -5,7 +5,7 @@
 echo "Please check https://cascade831.pythonanywhere.com/ to get the hostname and IP address"
 
 # Set username and IP address
-read -p "Enter username >> " user
+user="cascade"
 read -p "Enter IP address >> " ip
 
 ReceiveFile () {

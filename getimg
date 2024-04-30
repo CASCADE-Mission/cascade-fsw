@@ -1,0 +1,21 @@
+#!/bin/bash
+# Connection script
+
+# Set username and IP address
+user="cascade"
+ip="10.29.211.74"
+
+ReceiveFile () {
+    # Secure Copy (SCP) Script for CASCADE Flight Computer
+    # Receive a file from the remote host
+
+    # Read filename on remote host
+    abspath="~/cascade-fsw/test.jpg"
+
+    # Get base name for output filename
+    output="test.jpg"
+
+    scp $user@$ip:$abspath ./$output
+}
+
+ReceiveFile

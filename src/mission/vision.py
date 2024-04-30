@@ -1,11 +1,16 @@
 # CASCADE FSW
 # Computer Vision
 
+import time
+import sys
+
 import cv2
 import numpy as np
 from picamera2 import Picamera2
 
-BLUE_MASK = (
+import amg8833_i2c
+
+BLUE_MASK1 = (
     np.array([300, 60, 60]),
     np.array([360, 255, 255]),
 )
@@ -48,7 +53,7 @@ def capture_rgb_image(process):
     image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_BGR2HSV)
 
     # Create the image mask
-    mask1 = cv2.inRange(image, *BLUE_MASK)
+    mask1 = cv2.inRange(image, *BLUE_MASK1)
     mask2 = cv2.inRange(image, *BLUE_MASK2)
     mask = mask1 + mask2
 
@@ -70,3 +75,42 @@ def capture_rgb_image(process):
 
     # Save the image file
     cv2.imwrite("test.jpg", image)
+
+#######################################################################################
+# The copyright to the code below is owned by Joshua Hrisko, Maker Portal LLC (2021). #
+# The code has been modified slightly by Joseph Hobbs, CASCADE to fit the programming #
+# conventions of this project.                                                        #
+#######################################################################################
+
+def initialize_ir_camera(process):
+    """
+    Set up the IR camera
+    """
+    t0 = time.time()
+    sensor = []
+    while (time.time() - t0) < 1: # wait 1sec for sensor to start
+        try:
+            # AD0 = GND, addr = 0x68 | AD0 = 5V, addr = 0x69
+            sensor = amg8833_i2c.AMG8833(addr=0x69) # start AMG8833
+        except:
+            sensor = amg8833_i2c.AMG8833(addr=0x68)
+        finally:
+            pass
+    time.sleep(0.1) # wait for sensor to settle
+
+    # If no device is found, exit the script
+    if not sensor:
+        raise Exception("Could not find connected AMG8833")
+
+def capture_ir_image(process):
+    """
+    Capture an IR image
+    """
+    pix_to_read = 64 # read all 64 pixels
+    status, pixels = sensor.read_temp(pix_to_read) # read pixels with status
+    if status: # if error in pixel, re-enter loop and try again
+        continue
+    print(f"Pixels:\n{pixels}")
+
+    T_thermistor = sensor.read_thermistor() # read thermistor temp
+    print(f"Thermistor Temperature: {round(T_thermistor, 2)}") # print thermistor temp

@@ -121,7 +121,6 @@ class Process:
             task(self)
             self.log(task.success)
         except Exception as e:
-            raise e
             self.log(task.failure, priority=task.priority)
         
         # Log the task
