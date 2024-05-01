@@ -6,3 +6,6 @@ __pycache__/
 
 # Ignore captured images
 *.jpg
+
+# Ignore servo files
+servo.*

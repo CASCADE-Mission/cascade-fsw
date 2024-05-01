@@ -7,8 +7,9 @@ import sys
 import cv2
 import numpy as np
 from picamera2 import Picamera2
+from scipy import interpolate
 
-import amg8833_i2c
+from mission import amg8833_i2c
 
 BLUE_MASK1 = (
     np.array([300, 60, 60]),
@@ -102,15 +103,44 @@ def initialize_ir_camera(process):
     if not sensor:
         raise Exception("Could not find connected AMG8833")
 
+    # Save the camera as a process variable
+    process.setvar("ir-cam", sensor)
+
 def capture_ir_image(process):
     """
     Capture an IR image
     """
+    # Get the camera
+    sensor = process.getvar("ir-cam")
+
     pix_to_read = 64 # read all 64 pixels
     status, pixels = sensor.read_temp(pix_to_read) # read pixels with status
     if status: # if error in pixel, re-enter loop and try again
-        continue
-    print(f"Pixels:\n{pixels}")
+        capture_ir_image(process)
+
+    # original resolution
+    pix_res = (8, 8) # pixel resolution
+    xx, yy = (np.linspace(0, pix_res[0], pix_res[0]), np.linspace(0, pix_res[1], pix_res[1]))
+    zz = np.zeros(pix_res) # set array with zeros first
+
+    # new resolution
+    pix_mult = 1 # multiplier for interpolation
+    interp_res = (int(pix_mult * pix_res[0]), int(pix_mult * pix_res[1]))
+    grid_x, grid_y = (np.linspace(0, pix_res[0], interp_res[0]), np.linspace(0, pix_res[1], interp_res[1]))
+
+    def interp(z_var):
+        """
+        Using cubic interpolation, increase the resolution of the IR image
+        """
+        f = interpolate.interp2d(xx, yy, z_var, kind="cubic")
+        return f(grid_x, grid_y)
+
+    img = interp(np.reshape(pixels,pix_res))
+
+    print(f"Image:\n{img}")
+
+    with open("ir.txt", "w+") as f:
+        np.savetxt(f, img)
 
     T_thermistor = sensor.read_thermistor() # read thermistor temp
     print(f"Thermistor Temperature: {round(T_thermistor, 2)}") # print thermistor temp
