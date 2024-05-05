@@ -26,19 +26,10 @@ def initialize_rgb_camera(process):
     Set up the RGB camera
     """
     # Create the camera object
-    camera = Picamera2()
+    camera = cv2.VideoCapture(0)
 
     # Set the process variable `rgb-cam`
     process.setvar("rgb-cam", camera)
-
-    # Configure the camera
-    camera_config = camera.create_still_configuration(
-        main={"size": (640, 480)},
-    )
-    camera.configure(camera_config)
-
-    # Start the camera
-    camera.start()
 
 def capture_rgb_image(process):
     """
@@ -47,35 +38,71 @@ def capture_rgb_image(process):
     # Get the camera
     camera = process.getvar("rgb-cam")
 
-    # Capture a PIL-compatible image
-    pil_image = camera.capture_image("main")
+    # Capture an image
+    _, image = camera.read() 
 
-    # Convert the image color profile
-    image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_BGR2HSV)
+    process.setvar("bgr-img", image)
 
-    # Create the image mask
+def fuse_images(process):
+    """
+    Fuse a BGR image to an IR image
+    """
+    
+    # Get BGR and IR images
+
+    rgb_img = cv2.cvtColor(
+        process.getvar("bgr-img"),
+        cv2.COLOR_BGR2RGB,
+    )
+
+    ir_img = process.getvar("ir-img")
+
+    # Crop BGR image
+
+    xmin = int(rgb_img.shape[1] / 2 - rgb_img.shape[0] / 2)
+    xmax = int(xmin + rgb_img.shape[0])
+    ymin = 0
+    ymax = rgb_img.shape[0]
+
+    # Resize BGR image to 256x256 image
+
+    rgb_img_unsized = rgb_img[ymin:ymax, xmin:xmax]
+    rgb_img = cv2.resize(rgb_img_unsized, (256, 256), interpolation=cv2.INTER_LINEAR)
+
+    # Invert IR image
+
+    inverted_ir_img = (255 * (1 - ir_img/25)).astype(np.uint8)
+
+    # Construct mask
+
+    image = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
+
     mask1 = cv2.inRange(image, *BLUE_MASK1)
     mask2 = cv2.inRange(image, *BLUE_MASK2)
     mask = mask1 + mask2
 
-    # Apply the image mask
-    masked_img = cv2.bitwise_and(image, image, mask=mask)
+    fused = (255 * (mask/255) * (inverted_ir_img/255)).astype(np.uint8)
 
-    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    color_fused = cv2.cvtColor(fused, cv2.COLOR_GRAY2BGR)
 
-    # If we have contours...
-    if len(contours) != 0:
-        # Find the biggest countour by area
-        c = max(contours, key=cv2.contourArea)
+    # contours, _ = cv2.findContours(fused, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Get a bounding rectangle around that contour
-        x, y, w, h = cv2.boundingRect(c)
+    # # If we have contours...
+    # if len(contours) != 0:
+    #     # Find the biggest countour by area
+    #     c = max(contours, key = cv2.contourArea)
 
-        # Draw the rectangle on our frame
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    #     # Get a bounding rectangle around that contour
+    #     x,y,w,h = cv2.boundingRect(c)
 
-    # Save the image file
-    cv2.imwrite("test.jpg", image)
+    #     cv2.rectangle(color_fused,(x,y),(x+w,y+h),(0,255,0),2)
+
+    # print(x + w/2, y + h/2)
+
+    process.setvar("fused-img", color_fused)
+
+    # TODO: remove this
+    cv2.imwrite("fused.jpg", color_fused)
 
 #######################################################################################
 # The copyright to the code below is owned by Joshua Hrisko, Maker Portal LLC (2021). #
@@ -124,7 +151,7 @@ def capture_ir_image(process):
     zz = np.zeros(pix_res) # set array with zeros first
 
     # new resolution
-    pix_mult = 1 # multiplier for interpolation
+    pix_mult = 32 # multiplier for interpolation
     interp_res = (int(pix_mult * pix_res[0]), int(pix_mult * pix_res[1]))
     grid_x, grid_y = (np.linspace(0, pix_res[0], interp_res[0]), np.linspace(0, pix_res[1], interp_res[1]))
 
@@ -137,10 +164,9 @@ def capture_ir_image(process):
 
     img = interp(np.reshape(pixels,pix_res))
 
-    print(f"Image:\n{img}")
+    # Save the image
+    process.setvar("ir-img", img)
 
-    with open("ir.txt", "w+") as f:
-        np.savetxt(f, img)
-
-    T_thermistor = sensor.read_thermistor() # read thermistor temp
-    print(f"Thermistor Temperature: {round(T_thermistor, 2)}") # print thermistor temp
+    # Read and save the thermistor temperature
+    T_thermistor = sensor.read_thermistor()
+    process.setvar("temp", T_thermistor)
