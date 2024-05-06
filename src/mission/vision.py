@@ -15,10 +15,6 @@ BLUE_MASK = (
     np.array([160, 255, 255]),
 )
 
-K = 2  # Filter intensity (C^-1)
-
-T = 15 # Cutoff temperature (C)
-
 def initialize_rgb_camera():
     """
     Set up the RGB camera
@@ -42,13 +38,12 @@ def capture_rgb_image(camera):
     # Capture an image
     image = camera.capture_array()
 
-    # TODO: remove this
+    # Convert to BGR color profile
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    cv2.imwrite("rgb.jpg", image)
 
     return image
 
-def fuse_images(rgb_img, ir_img):
+def fuse_images(rgb_img, ir_img, min_feature_size):
     """
     Fuse an RGB image to an IR image
 
@@ -66,7 +61,7 @@ def fuse_images(rgb_img, ir_img):
 
     contours, _ = cv2.findContours(fused, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    target = False
+    d = None
 
     # If we have contours...
     if len(contours) != 0:
@@ -78,14 +73,13 @@ def fuse_images(rgb_img, ir_img):
 
         cv2.rectangle(color_fused,(x,y),(x+w,y+h),(0,255,0),2)
 
-        if np.sqrt(w*w + h*h) > 30:
-            target = True
-            print(f"Location: ({x + w/2}, {y + h/2}) | Width: {w}")
+        # Determine characteristic dimension
+        d = np.sqrt(w*w + h*h)
 
-    # TODO: remove this
-    cv2.imwrite("fused.jpg", color_fused)
+        if d > min_feature_size:
+            print(f"Location: ({x + w/2}, {y + h/2}) | Size: {d}")
 
-    return color_fused, target
+    return d
 
 #######################################################################################
 # The copyright to the code below is owned by Joshua Hrisko, Maker Portal LLC (2021). #
@@ -115,7 +109,7 @@ def initialize_ir_camera():
 
     return sensor
 
-def capture_ir_image(sensor):
+def capture_ir_image(sensor, k, t):
     """
     Capture an IR image
     """
@@ -144,8 +138,6 @@ def capture_ir_image(sensor):
     img = interp(np.reshape(pixels,pix_res))
 
     # Invert IR image
-    img = (255 / (1 + np.exp(K * (img - T)))).astype(np.uint8)
-
-    cv2.imwrite("ir.jpg", img)
+    img = (255 / (1 + np.exp(k * (img - t)))).astype(np.uint8)
 
     return img

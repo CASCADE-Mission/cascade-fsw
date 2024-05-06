@@ -2,13 +2,20 @@
 # CASCADE FSW
 # Main executable
 
-print("Configuring...")
+print("Booting...")
+
+from time import time, sleep
 
 from mission.vision import fuse_images, initialize_ir_camera, capture_ir_image, initialize_rgb_camera, capture_rgb_image
+from mission.servo import probe_deploy, probe_reset
 
 # CONSTANT DEFINITIONS
-
 SERVO_PIN = 17
+DROP_DELAY_TIME = 10 # sec
+IR_FILTER_INTENSITY = 2 # (deg C)^-1
+IR_FILTER_CUTOFF = 15 # deg C
+MINIMUM_FEATURE_SIZE = 15 # pixels
+SERIAL_PORT = "/dev/ttyACM0"
 
 def error(msg):
     """
@@ -26,7 +33,7 @@ def prompt(msg):
         return True
     return False
 
-if __name__ == "__main__":
+def main():
     # Start in Safe Mode
     state = "safe"
 
@@ -57,9 +64,9 @@ if __name__ == "__main__":
                 state = "safe"
 
         elif state == "transit":
-            identified_target = False
+            identified_count = 0
 
-            while not identified_target:
+            while True:
                 # Take an RGB image
                 try:
                     rgb_image = capture_rgb_image(rgb_camera)
@@ -68,16 +75,33 @@ if __name__ == "__main__":
 
                 # Take an IR image
                 try:
-                    ir_image = capture_ir_image(ir_camera)
+                    ir_image = capture_ir_image(ir_camera, IR_FILTER_INTENSITY, IR_FILTER_CUTOFF)
                 except NameError:
                     error("IR camera not configured, entering Safe Mode")
 
                 # Fuse images
-                fused = fuse_images(rgb_image, ir_image)
+                size = fuse_images(rgb_image, ir_image, MINIMUM_FEATURE_SIZE)
 
-                if not prompt("Continue?"):
-                    state = "eol"
+                if size is not None:
+                    identified_count += 1
+
+                if identified_count >= 20:
                     break
+
+            # Wait
+            print(f"Target identified, {DROP_DELAY_TIME} seconds until probe drop")
+            sleep(DROP_DELAY_TIME/2)
+            print(f"{DROP_DELAY_TIME/2} seconds until probe drop")
+            sleep(DROP_DELAY_TIME/2)
+
+            # Drop the probe
+            probe_deploy(SERVO_PIN)
+
+            state = "science"
+
+        elif state == "science":
+            print("Science Mode :)")
+            sleep(5)
 
         elif state == "eol":
             # Turn on RGB camera
@@ -95,3 +119,6 @@ if __name__ == "__main__":
             # Something's wrong, unrecognized state
             error(f"Spacecraft in unrecognized mode {state}, entering Safe Mode")
             state = "safe"
+
+if __name__ == "__main__":
+    main()
