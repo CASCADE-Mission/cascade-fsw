@@ -2,107 +2,90 @@
 # Computer Vision
 
 import time
-import sys
 
+from picamera2 import Picamera2
 import cv2
 import numpy as np
-from picamera2 import Picamera2
 from scipy import interpolate
 
 from mission import amg8833_i2c
 
-BLUE_MASK1 = (
-    np.array([300, 60, 60]),
-    np.array([360, 255, 255]),
+BLUE_MASK = (
+    np.array([80, 40, 40]),
+    np.array([160, 255, 255]),
 )
 
-BLUE_MASK2 = (
-    np.array([0, 60, 60]),
-    np.array([60, 255, 255]),
-)
+K = 2  # Filter intensity (C^-1)
 
-def initialize_rgb_camera(process):
+T = 15 # Cutoff temperature (C)
+
+def initialize_rgb_camera():
     """
     Set up the RGB camera
     """
     # Create the camera object
-    camera = cv2.VideoCapture(0)
+    camera = Picamera2()
 
-    # Set the process variable `rgb-cam`
-    process.setvar("rgb-cam", camera)
+    # Configure the camera object
+    config = camera.create_still_configuration(main={"size": (256, 256)})
+    camera.configure(config)
 
-def capture_rgb_image(process):
+    # Start the camera
+    camera.start()
+
+    return camera
+
+def capture_rgb_image(camera):
     """
     Capture an RGB image
     """
-    # Get the camera
-    camera = process.getvar("rgb-cam")
-
     # Capture an image
-    _, image = camera.read() 
+    image = camera.capture_array()
 
-    process.setvar("bgr-img", image)
+    # TODO: remove this
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    cv2.imwrite("rgb.jpg", image)
 
-def fuse_images(process):
+    return image
+
+def fuse_images(rgb_img, ir_img):
     """
-    Fuse a BGR image to an IR image
+    Fuse an RGB image to an IR image
+
+    Arguments:
+        - `rgb_img`: a 256x256 NumPy array representing the RGB image
+        - `ir_img`: a 256x256 NumPy array representing the IR image
     """
-    
-    # Get BGR and IR images
-
-    rgb_img = cv2.cvtColor(
-        process.getvar("bgr-img"),
-        cv2.COLOR_BGR2RGB,
-    )
-
-    ir_img = process.getvar("ir-img")
-
-    # Crop BGR image
-
-    xmin = int(rgb_img.shape[1] / 2 - rgb_img.shape[0] / 2)
-    xmax = int(xmin + rgb_img.shape[0])
-    ymin = 0
-    ymax = rgb_img.shape[0]
-
-    # Resize BGR image to 256x256 image
-
-    rgb_img_unsized = rgb_img[ymin:ymax, xmin:xmax]
-    rgb_img = cv2.resize(rgb_img_unsized, (256, 256), interpolation=cv2.INTER_LINEAR)
-
-    # Invert IR image
-
-    inverted_ir_img = (255 * (1 - ir_img/25)).astype(np.uint8)
-
-    # Construct mask
-
     image = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
 
-    mask1 = cv2.inRange(image, *BLUE_MASK1)
-    mask2 = cv2.inRange(image, *BLUE_MASK2)
-    mask = mask1 + mask2
+    mask = cv2.inRange(image, *BLUE_MASK)
 
-    fused = (255 * (mask/255) * (inverted_ir_img/255)).astype(np.uint8)
+    fused = (255 * (mask/255) * (ir_img/255)).astype(np.uint8)
 
     color_fused = cv2.cvtColor(fused, cv2.COLOR_GRAY2BGR)
 
-    # contours, _ = cv2.findContours(fused, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(fused, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    # # If we have contours...
-    # if len(contours) != 0:
-    #     # Find the biggest countour by area
-    #     c = max(contours, key = cv2.contourArea)
+    target = False
 
-    #     # Get a bounding rectangle around that contour
-    #     x,y,w,h = cv2.boundingRect(c)
+    # If we have contours...
+    if len(contours) != 0:
+        # Find the biggest countour by area
+        c = max(contours, key = cv2.contourArea)
 
-    #     cv2.rectangle(color_fused,(x,y),(x+w,y+h),(0,255,0),2)
+        # Get a bounding rectangle around that contour
+        x,y,w,h = cv2.boundingRect(c)
 
-    # print(x + w/2, y + h/2)
+        cv2.rectangle(color_fused,(x,y),(x+w,y+h),(0,255,0),2)
 
-    process.setvar("fused-img", color_fused)
+        if np.sqrt(w*w + h*h) > 30:
+            target = True
+            print(f"Location: ({x + w/2}, {y + h/2}) | Width: {w}")
 
     # TODO: remove this
     cv2.imwrite("fused.jpg", color_fused)
+
+    return color_fused, target
 
 #######################################################################################
 # The copyright to the code below is owned by Joshua Hrisko, Maker Portal LLC (2021). #
@@ -110,7 +93,7 @@ def fuse_images(process):
 # conventions of this project.                                                        #
 #######################################################################################
 
-def initialize_ir_camera(process):
+def initialize_ir_camera():
     """
     Set up the IR camera
     """
@@ -130,16 +113,12 @@ def initialize_ir_camera(process):
     if not sensor:
         raise Exception("Could not find connected AMG8833")
 
-    # Save the camera as a process variable
-    process.setvar("ir-cam", sensor)
+    return sensor
 
-def capture_ir_image(process):
+def capture_ir_image(sensor):
     """
     Capture an IR image
     """
-    # Get the camera
-    sensor = process.getvar("ir-cam")
-
     pix_to_read = 64 # read all 64 pixels
     status, pixels = sensor.read_temp(pix_to_read) # read pixels with status
     if status: # if error in pixel, re-enter loop and try again
@@ -164,9 +143,9 @@ def capture_ir_image(process):
 
     img = interp(np.reshape(pixels,pix_res))
 
-    # Save the image
-    process.setvar("ir-img", img)
+    # Invert IR image
+    img = (255 / (1 + np.exp(K * (img - T)))).astype(np.uint8)
 
-    # Read and save the thermistor temperature
-    T_thermistor = sensor.read_thermistor()
-    process.setvar("temp", T_thermistor)
+    cv2.imwrite("ir.jpg", img)
+
+    return img
